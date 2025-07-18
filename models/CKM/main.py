@@ -36,16 +36,8 @@ if __name__ == '__main__':
         path_ckpts, 'model.pth'
     )
 
-    path_ckpt_augmented = os.path.join(
-        path_ckpts, 'model_augmented.pth'
-    )
-
     path_pretrain = os.path.join(
         path_ckpts, 'autoencoder.pth'
-    )
-
-    path_pretrain_augmented = os.path.join(
-        path_ckpts, 'autoencoder_augmented.pth'
     )
 
     path_log = os.path.join(
