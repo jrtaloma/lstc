@@ -8,7 +8,7 @@ from sklearn.cluster import KMeans
 from utils.config import get_arguments
 from utils.random_seed import random_seed
 from data.load_data import get_loader
-from net.model import PathFormer, pretrain_ae, predict, pretrain_ae_augmented, predict_augmented
+from net.model import Preformer, pretrain_ae, predict, pretrain_ae_augmented, predict_augmented
 from utils.losses import KMeansLoss, InstanceContrastiveLoss, ClusterContrastiveLoss
 from experiment import train
 
@@ -76,12 +76,12 @@ if __name__ == '__main__':
     )
 
     args.n_clusters = train_dataset.n_clusters
-    args.seq_len = train_dataset.new_seq_len
+    args.seq_len = train_dataset.n_input
 
     # Autoencoders
-    model = PathFormer(num_layers=args.num_layers, seq_len=args.seq_len, k=args.k, num_experts_list=args.num_experts_list, patch_size_list=args.patch_size_list, d_model=args.d_model, d_ff=args.d_ff, residual_connection=args.residual_connection, revin=args.revin, device=device)
+    model = Preformer(seq_len=args.seq_len, output_attention=args.output_attention, moving_avg=args.moving_avg, d_model=args.d_model, n_heads=args.n_heads, dropout=args.dropout, factor=args.factor, d_ff=args.d_ff, activation=args.activation, e_layers=args.e_layers, d_layers=args.d_layers)
     model = model.to(device)
-    model_augmented = PathFormer(num_layers=args.num_layers, seq_len=args.seq_len, k=args.k, num_experts_list=args.num_experts_list, patch_size_list=args.patch_size_list, d_model=args.d_model, d_ff=args.d_ff, residual_connection=args.residual_connection, revin=args.revin, device=device)
+    model_augmented = Preformer(seq_len=args.seq_len, output_attention=args.output_attention, moving_avg=args.moving_avg, d_model=args.d_model, n_heads=args.n_heads, dropout=args.dropout, factor=args.factor, d_ff=args.d_ff, activation=args.activation, e_layers=args.e_layers, d_layers=args.d_layers)
     model_augmented = model_augmented.to(device)
 
     # Pretraining autoencoder or loading pretrained
@@ -100,12 +100,12 @@ if __name__ == '__main__':
     all_z = predict(model, test_loader, device=torch.device('cuda'))
     kmeans = KMeans(n_clusters=args.n_clusters, init='k-means++', random_state=args.seed)
     kmeans.fit(all_z.data.cpu().numpy())
-    model = PathFormer(num_layers=args.num_layers, seq_len=args.seq_len, k=args.k, num_experts_list=args.num_experts_list, patch_size_list=args.patch_size_list, d_model=args.d_model, d_ff=args.d_ff, residual_connection=args.residual_connection, revin=args.revin, device=device)
+    model = Preformer(seq_len=args.seq_len, output_attention=args.output_attention, moving_avg=args.moving_avg, d_model=args.d_model, n_heads=args.n_heads, dropout=args.dropout, factor=args.factor, d_ff=args.d_ff, activation=args.activation, e_layers=args.e_layers, d_layers=args.d_layers)
     model = model.to(device)
     all_z = predict_augmented(model_augmented, test_loader, device=torch.device('cuda'))
     kmeans_augmented = KMeans(n_clusters=args.n_clusters, init='k-means++', random_state=args.seed)
     kmeans_augmented.fit(all_z.data.cpu().numpy())
-    model_augmented = PathFormer(num_layers=args.num_layers, seq_len=args.seq_len, k=args.k, num_experts_list=args.num_experts_list, patch_size_list=args.patch_size_list, d_model=args.d_model, d_ff=args.d_ff, residual_connection=args.residual_connection, revin=args.revin, device=device)
+    model_augmented = Preformer(seq_len=args.seq_len, output_attention=args.output_attention, moving_avg=args.moving_avg, d_model=args.d_model, n_heads=args.n_heads, dropout=args.dropout, factor=args.factor, d_ff=args.d_ff, activation=args.activation, e_layers=args.e_layers, d_layers=args.d_layers)
     model_augmented = model_augmented.to(device)
 
     criterion_rec = nn.MSELoss()
