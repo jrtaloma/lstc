@@ -34,6 +34,7 @@ BATCH_SIZE=128
 EPOCHS_PRETRAIN=50
 EPOCHS=100
 LR=0.001
+STEP_SIZE=5
 
 NUM_WORKERS=4
 
@@ -44,6 +45,6 @@ for DATASET_NAME in $DATASET_NAMES;
 do
 	for SEED in $SEEDS;
 	do
-		CUDA_VISIBLE_DEVICES=0 python main.py --dataset_name $DATASET_NAME --n_z $N_Z --alpha $ALPHA --beta $BETA --temperature $TEMPERATURE --tol $TOL --batch_size $BATCH_SIZE --epochs_pretrain $EPOCHS_PRETRAIN --epochs $EPOCHS --lr $LR --num_workers $NUM_WORKERS --seed $SEED
+		CUDA_VISIBLE_DEVICES=0 python main.py --dataset_name $DATASET_NAME --n_z $N_Z --alpha $ALPHA --beta $BETA --temperature $TEMPERATURE --tol $TOL --batch_size $BATCH_SIZE --epochs_pretrain $EPOCHS_PRETRAIN --epochs $EPOCHS --lr $LR --step_size $STEP_SIZE --num_workers $NUM_WORKERS --seed $SEED
 	done
 done

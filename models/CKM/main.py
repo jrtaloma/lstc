@@ -90,8 +90,8 @@ if __name__ == '__main__':
 
     criterion_rec = nn.MSELoss()
     criterion_kmeans = KMeansLoss(centroids=kmeans.cluster_centers_).to(device)
-    optimizer = torch.optim.SGD(list(model.parameters()) + list(criterion_kmeans.parameters()), lr=0.01)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
+    optimizer = torch.optim.SGD(list(model.parameters()) + list(criterion_kmeans.parameters()), lr=args.lr)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=0.1)
 
     # Training & testing
     epoch, preds, ri, ari, nmi, silhouette = train(args, model, train_loader, test_loader, criterion_rec, criterion_kmeans, optimizer, scheduler, path_ckpt, device)
