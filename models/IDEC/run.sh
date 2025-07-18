@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MODEL_NAME="DTC"
+MODEL_NAME="IDEC"
 
 EXPERIMENT_NAME="default"
 
@@ -24,6 +24,7 @@ ProximalPhalanxTW
 SyntheticControl
 "
 
+N_Z=128
 ALPHA=1.0
 ALPHA_KL=0.1
 TOL=0.001
@@ -43,6 +44,6 @@ for DATASET_NAME in $DATASET_NAMES;
 do
 	for SEED in $SEEDS;
 	do
-		CUDA_VISIBLE_DEVICES=0 python main.py --dataset_name $DATASET_NAME --alpha $ALPHA --alpha_kl $ALPHA_KL --tol $TOL --batch_size $BATCH_SIZE --epochs_pretrain $EPOCHS_PRETRAIN --epochs $EPOCHS --lr $LR --step_size $STEP_SIZE --num_workers $NUM_WORKERS --seed $SEED
+		CUDA_VISIBLE_DEVICES=0 python main.py --dataset_name $DATASET_NAME --n_z $N_Z --alpha $ALPHA --alpha_kl $ALPHA_KL --tol $TOL --batch_size $BATCH_SIZE --epochs_pretrain $EPOCHS_PRETRAIN --epochs $EPOCHS --lr $LR --step_size $STEP_SIZE --num_workers $NUM_WORKERS --seed $SEED
 	done
 done
