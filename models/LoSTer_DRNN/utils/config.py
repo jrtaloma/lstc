@@ -16,7 +16,7 @@ def get_arguments():
     parser.add_argument('--temperature', type=int, default=10, help='The initial temperature for fast simulated annealing')
     parser.add_argument('--tol', type=float, default=0.001, help='Tolerance threshold on cluster changes to stop training')
 
-    parser.add_argument( '--batch_size', type=int, default=128, help='Batch size')
+    parser.add_argument('--batch_size', type=int, default=128, help='Batch size')
     parser.add_argument('--epochs_pretrain', type=int, default=50, help='Epochs number of the autoencoder pretraining. Set 0 to load pretrained autoencoder')
     parser.add_argument('--epochs', type=int, default=100, help='Maximum epochs number of the model training')
     parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate of the model training')
