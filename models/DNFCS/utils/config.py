@@ -9,7 +9,7 @@ def get_arguments():
     parser.add_argument('--experiment_name', default='default', help='Name of the experiment')
 
     parser.add_argument('--n_z', type=int, default=128, help='Size of the hidden state')
-    parser.add_argument('--beta', type=float, default=0.001, help="Hyperparameter for the balance of the within-cluster distance and the between-cluster distance in the cluster space")
+    parser.add_argument('--beta', type=float, default=0.001, help='Hyperparameter for the balance of the within-cluster distance and the between-cluster distance in the cluster space')
     parser.add_argument('--m', type=float, default=2.0, help='Fuzzifier')
     parser.add_argument('--alpha_fcs', type=float, default=0.01, help='Hyperparameter for FCS loss')
     parser.add_argument('--alpha_kl', type=float, default=0.1, help='Hyperparameter for KL divergence loss')

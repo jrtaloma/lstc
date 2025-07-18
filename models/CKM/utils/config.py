@@ -9,9 +9,9 @@ def get_arguments():
     parser.add_argument('--experiment_name', default='default', help='Name of the experiment')
 
     parser.add_argument('--n_z', type=int, default=128, help='Size of the hidden state')
-    parser.add_argument('--alpha', type=float, default=1.0, help="Hyperparameter for k-means loss")
-    parser.add_argument("--beta", type=float, default=0.65, help="The decaying factor for fast simulated annealing")
-    parser.add_argument("--temperature", type=int, default=10, help="The initial temperature for fast simulated annealing")
+    parser.add_argument('--alpha', type=float, default=1.0, help='Hyperparameter for k-means loss')
+    parser.add_argument('--beta', type=float, default=0.65, help='The decaying factor for fast simulated annealing')
+    parser.add_argument('--temperature', type=int, default=10, help='The initial temperature for fast simulated annealing')
     parser.add_argument('--tol', type=float, default=0.001, help='Tolerance threshold on cluster changes to stop training')
 
     parser.add_argument('--batch_size', type=int, default=128, help='Batch size')

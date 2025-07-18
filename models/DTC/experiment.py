@@ -70,13 +70,13 @@ def train_epoch(args, model, train_loader, test_loader, criterion_rec, optimizer
 
     print(
         f'Epoch: {epoch+1}/{args.epochs}',
-        'Loss: %.5f' % (train_loss / (batch_idx + 1)),
-        'MSE Loss: %.5f' % (train_loss_rec / (batch_idx + 1)),
-        'KL Divergence Loss: %.5f' % (train_loss_kl / (batch_idx + 1)),
-        'RI score: %.5f' % ri,
-        'ARI score: %.5f' % ari,
-        'NMI score: %.5f' % nmi,
-        'Silhouette score: %.5f' % silhouette
+        'Loss: %.4f' % (train_loss / (batch_idx + 1)),
+        'MSE Loss: %.4f' % (train_loss_rec / (batch_idx + 1)),
+        'KL Divergence Loss: %.4f' % (train_loss_kl / (batch_idx + 1)),
+        'RI score: %.4f' % ri,
+        'ARI score: %.4f' % ari,
+        'NMI score: %.4f' % nmi,
+        'Silhouette score: %.4f' % silhouette
     )
 
     return all_z, all_preds, all_probs, all_gt, ri, ari, nmi, silhouette
