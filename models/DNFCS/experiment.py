@@ -4,48 +4,50 @@ import torch.nn as nn
 from sklearn.metrics import silhouette_score
 from tqdm import tqdm
 
+from utils.losses import target_distribution, kl_loss_function
 from utils.metrics import evaluation
-from utils.gumbel import softmax_logits
 
 
-def train_epoch(args, model, train_loader, test_loader, criterion_rec, criterion_kmeans, optimizer, scheduler, epoch, device):
+def train_epoch(args, model, train_loader, test_loader, criterion_rec, optimizer, scheduler, epoch, P, device):
     model.train()
     train_loss = 0
     train_loss_rec = 0
-    train_loss_k_means = 0
-
-    temperature = max(args.temperature * args.beta**epoch, 0.01)
+    train_loss_fcs = 0
+    train_loss_kl = 0
 
     ### Training on the train set
     for batch_idx, (inputs, _, idx) in tqdm(enumerate(train_loader), total=len(train_loader), leave=False):
         inputs = inputs.to(device)
         optimizer.zero_grad()
-        x_rec, z = model(inputs)
-        cluster_logits = softmax_logits(z, criterion_kmeans.centroids.to(device))
+        x_rec, z, Q, S_fw, S_fb = model(inputs)
         loss_rec = criterion_rec(x_rec, inputs)
-        loss_k_means = criterion_kmeans(z, cluster_logits, temperature)
-        loss_total = loss_rec + args.alpha * loss_k_means
+        loss_fcs = torch.mean(torch.sum(S_fw, dim=1) - torch.sum(S_fb, dim=1))
+        loss_KL = kl_loss_function(P[idx], Q)
+        loss_total = loss_rec + args.alpha_fcs * loss_fcs + args.alpha_kl * loss_KL
         loss_total.backward()
         optimizer.step()
         train_loss += loss_total.item()
         train_loss_rec += loss_rec.item()
-        train_loss_k_means += loss_k_means.item()
+        train_loss_fcs += loss_fcs.item()
+        train_loss_kl += loss_KL.item()
     scheduler.step()
 
     ### Evaluating on the test set
     model.eval()
-    all_z, all_preds, all_gt = [], [], []
+    all_z, all_preds, all_probs, all_gt = [], [], [], []
     with torch.no_grad():
         for inputs, labels, _ in test_loader:
             inputs = inputs.to(device)
-            _, z = model(inputs)
-            cluster_logits = softmax_logits(z, criterion_kmeans.centroids.detach().to(device))
-            preds = torch.argmax(cluster_logits, dim=1)
+            _, z, Q, _, _ = model(inputs)
+            assert Q.min() >= 0, Q.min()
+            preds = torch.max(Q, dim=1)[1]
             all_z.append(z.detach().cpu())
             all_preds.append(preds.detach().cpu())
+            all_probs.append(Q.detach().cpu())
             all_gt.append(labels.detach().cpu())
     all_z = torch.cat(all_z, dim=0).numpy()
     all_preds = torch.cat(all_preds, dim=0).numpy()
+    all_probs = torch.cat(all_probs, dim=0).numpy()
     all_gt = torch.cat(all_gt, dim=0).numpy()
     ri, ari, nmi = evaluation(all_preds, all_gt)
     try:
@@ -57,23 +59,27 @@ def train_epoch(args, model, train_loader, test_loader, criterion_rec, criterion
         f'Epoch: {epoch+1}/{args.epochs}',
         'Loss: %.4f' % (train_loss / (batch_idx + 1)),
         'MSE Loss: %.4f' % (train_loss_rec / (batch_idx + 1)),
-        'K-means Loss: %.4f' % (train_loss_k_means / (batch_idx + 1)),
+        'FCS Loss: %.4f' % (train_loss_fcs / (batch_idx + 1)),
+        'KL Divergence Loss: %.4f' % (train_loss_kl / (batch_idx + 1)),
         'RI score: %.4f' % ri,
         'ARI score: %.4f' % ari,
         'NMI score: %.4f' % nmi,
         'Silhouette score: %.4f' % silhouette
     )
 
-    return all_z, all_preds, all_gt, ri, ari, nmi, silhouette
+    return all_z, all_preds, all_probs, all_gt, ri, ari, nmi, silhouette
 
 
-def train(args, model, train_loader, test_loader, criterion_rec, criterion_kmeans, optimizer, scheduler, path_ckpt, device):
+def train(args, model, data, train_loader, test_loader, criterion_rec, optimizer, scheduler, path_ckpt, device):
     best_ri_score = -np.inf
     print('Training full model ...')
-
     preds_last = []
     for epoch in tqdm(range(args.epochs), total=args.epochs, leave=False):
-        _, preds, _, ri, ari, nmi, silhouette = train_epoch(args, model, train_loader, test_loader, criterion_rec, criterion_kmeans, optimizer, scheduler, epoch, device)
+        # Update target distribution P
+        _, _, Q, _, _ = model(data)
+        P = target_distribution(Q.data)
+
+        _, preds, probs, _, ri, ari, nmi, silhouette = train_epoch(args, model, train_loader, test_loader, criterion_rec, optimizer, scheduler, epoch, P, device)
         if ri > best_ri_score:
             best_ri_score = ri
             print('Epoch: {}/{}, Test RI score: {:.4f}.'.format(epoch+1, args.epochs, best_ri_score))
@@ -88,4 +94,4 @@ def train(args, model, train_loader, test_loader, criterion_rec, criterion_kmean
     torch.save(model.state_dict(), path_ckpt)
     print('Model saved to: {}'.format(path_ckpt))
 
-    return epoch+1, preds, ri, ari, nmi, silhouette
+    return epoch+1, preds, probs, ri, ari, nmi, silhouette

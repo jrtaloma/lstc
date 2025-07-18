@@ -92,7 +92,7 @@ def train(args, model, model_augmented, train_loader, test_loader, criterion_rec
         _, preds, _, ri, ari, nmi, silhouette = train_epoch(args, model, model_augmented, train_loader, test_loader, criterion_rec, criterion_kmeans, criterion_kmeans_augmented, criterion_instance_contrastive, criterion_cluster_contrastive, optimizer, scheduler, epoch, device)
         if ri > best_ri_score:
             best_ri_score = ri
-            print('Epoch: {}/{}, Test RI score: {}.'.format(epoch+1, args.epochs, best_ri_score))
+            print('Epoch: {}/{}, Test RI score: {:.4f}.'.format(epoch+1, args.epochs, best_ri_score))
         if epoch > 0:
             delta_label = np.sum(preds != preds_last).astype(np.float32) / preds.shape[0]
             if delta_label < args.tol:
