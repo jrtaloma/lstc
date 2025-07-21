@@ -22,6 +22,7 @@ MiddlePhalanxOutlineAgeGroup
 ProximalPhalanxOutlineAgeGroup
 ProximalPhalanxTW
 SyntheticControl
+m5-forecasting-accuracy
 "
 
 ALPHA=1.0

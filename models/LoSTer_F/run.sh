@@ -22,6 +22,7 @@ MiddlePhalanxOutlineAgeGroup
 ProximalPhalanxOutlineAgeGroup
 ProximalPhalanxTW
 SyntheticControl
+m5-forecasting-accuracy
 "
 
 HIDDEN_SIZE=256
