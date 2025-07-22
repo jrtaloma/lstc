@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import wandb
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from tqdm import tqdm
@@ -35,13 +36,13 @@ def get_fake_sample(data):
 
 def train_epoch(args, model, train_loader, test_loader, criterion_rec, criterion_class, criterion_kmeans, optimizer, epoch, device):
     model.train()
-    train_loss = 0
-    train_loss_rec = 0
-    train_loss_k_means = 0
-    train_loss_classification = 0
+    train_loss = []
+    train_loss_rec = []
+    train_loss_k_means = []
+    train_loss_classification = []
 
     ### Training on the train set
-    for batch_idx, (inputs, _, _) in tqdm(enumerate(train_loader), total=len(train_loader), leave=False):
+    for inputs, _, _ in tqdm(train_loader, total=len(train_loader), leave=False):
         inputs = inputs.unsqueeze(-1).to(device)
         inputs_fake = get_fake_sample(inputs)
         inputs_real_fake = torch.cat([inputs, inputs_fake], dim=0)
@@ -60,10 +61,17 @@ def train_epoch(args, model, train_loader, test_loader, criterion_rec, criterion
         loss_total = loss_rec + loss_k_means + loss_classification
         loss_total.backward()
         optimizer.step()
-        train_loss += loss_total.item()
-        train_loss_rec += loss_rec.item()
-        train_loss_k_means += loss_k_means.item()
-        train_loss_classification += loss_classification.item()
+        train_loss.append(loss_total.detach())
+        train_loss_rec.append(loss_rec.detach())
+        train_loss_k_means.append(loss_k_means.detach())
+        train_loss_classification.append(loss_classification.detach())
+
+        wandb.log({
+            'Loss': loss_total,
+            'MSE Loss': loss_rec,
+            'K-means Loss': loss_k_means,
+            'Classification Loss': loss_classification
+        })
 
         # Updating cluster indicator matrix
         if epoch % args.alter_iter == 0 and epoch != 0:
@@ -87,22 +95,41 @@ def train_epoch(args, model, train_loader, test_loader, criterion_rec, criterion
     except:
         silhouette = -np.inf
 
+    train_loss = torch.stack(train_loss).mean().item()
+    train_loss_rec = torch.stack(train_loss_rec).mean().item()
+    train_loss_k_means = torch.stack(train_loss_k_means).mean().item()
+    train_loss_classification = torch.stack(train_loss_classification).mean().item()
+
     print(
         f'Epoch: {epoch+1}/{args.epochs}',
-        'Loss: %.4f' % (train_loss / (batch_idx + 1)),
-        'MSE Loss: %.4f' % (train_loss_rec / (batch_idx + 1)),
-        'K-means Loss: %.4f' % (train_loss_k_means / (batch_idx + 1)),
-        'Classification Loss: %.4f' % (train_loss_classification / (batch_idx + 1)),
+        'Loss: %.4f' % train_loss,
+        'MSE Loss: %.4f' % train_loss_rec,
+        'K-means Loss: %.4f' % train_loss_k_means,
+        'Classification Loss: %.4f' % train_loss_classification,
         'RI score: %.4f' % ri,
         'ARI score: %.4f' % ari,
         'NMI score: %.4f' % nmi,
         'Silhouette score: %.4f' % silhouette
     )
 
+    wandb.log({
+        'Epoch': epoch+1,
+        'Loss (epoch)': train_loss,
+        'MSE Loss (epoch)': train_loss_rec,
+        'K-means Loss (epoch)': train_loss_k_means,
+        'Classification Loss (epoch)': train_loss_classification,
+        'RI score': ri,
+        'ARI score': ari,
+        'NMI score': nmi,
+        'Silhouette score': silhouette
+    })
+
     return all_z, all_preds, all_gt, ri, ari, nmi, silhouette
 
 
 def train(args, model, train_loader, test_loader, criterion_rec, criterion_class, criterion_kmeans, optimizer, path_ckpt, device):
+    wandb.init(project='Concrete Dense Network for Long-Sequence Time Series Clustering', config=args)
+
     best_ri_score = -np.inf
     print('Training full model ...')
 
@@ -122,5 +149,7 @@ def train(args, model, train_loader, test_loader, criterion_rec, criterion_class
 
     torch.save(model.state_dict(), path_ckpt)
     print('Model saved to: {}'.format(path_ckpt))
+
+    wandb.finish()
 
     return epoch+1, preds, ri, ari, nmi, silhouette

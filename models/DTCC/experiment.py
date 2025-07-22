@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
+import wandb
 from sklearn.metrics import silhouette_score
 from tqdm import tqdm
 
@@ -11,14 +12,14 @@ from utils.metrics import evaluation
 def train_epoch(args, model, model_augmented, train_loader, test_loader, criterion_rec, criterion_kmeans, criterion_kmeans_augmented, criterion_instance_contrastive, criterion_cluster_contrastive, optimizer, epoch, device):
     model.train()
     model_augmented.train()
-    train_loss = 0
-    train_loss_rec = 0
-    train_loss_k_means = 0
-    train_loss_instance_contrastive = 0
-    train_loss_cluster_contrastive = 0
+    train_loss = []
+    train_loss_rec = []
+    train_loss_k_means = []
+    train_loss_instance_contrastive = []
+    train_loss_cluster_contrastive = []
 
     ### Training on the train set
-    for batch_idx, (inputs, _, _) in tqdm(enumerate(train_loader), total=len(train_loader), leave=False):
+    for inputs, _, _ in tqdm(train_loader, total=len(train_loader), leave=False):
         inputs = inputs.unsqueeze(-1).to(device)
         inputs_augmented = inputs + torch.empty_like(inputs).normal_(mean=0.0, std=0.3) # random jitter
 
@@ -33,11 +34,19 @@ def train_epoch(args, model, model_augmented, train_loader, test_loader, criteri
         loss_total = loss_rec + loss_k_means + loss_instance_contrastive + loss_cluster_contrastive
         loss_total.backward()
         optimizer.step()
-        train_loss += loss_total.item()
-        train_loss_rec += loss_rec.item()
-        train_loss_k_means += loss_k_means.item()
-        train_loss_instance_contrastive += loss_instance_contrastive.item()
-        train_loss_cluster_contrastive += loss_cluster_contrastive.item()
+        train_loss.append(loss_total.detach())
+        train_loss_rec.append(loss_rec.detach())
+        train_loss_k_means.append(loss_k_means.detach())
+        train_loss_instance_contrastive.append(loss_instance_contrastive.detach())
+        train_loss_cluster_contrastive.append(loss_cluster_contrastive.detach())
+
+        wandb.log({
+            'Loss': loss_total,
+            'MSE Loss': loss_rec,
+            'K-means Loss': loss_k_means,
+            'Instance Loss': loss_instance_contrastive,
+            'Cluster Loss': loss_cluster_contrastive
+        })
 
         # Updating cluster indicator matrix
         if epoch % args.alter_iter == 0 and epoch != 0:
@@ -62,23 +71,44 @@ def train_epoch(args, model, model_augmented, train_loader, test_loader, criteri
     except:
         silhouette = -np.inf
 
+    train_loss = torch.stack(train_loss).mean().item()
+    train_loss_rec = torch.stack(train_loss_rec).mean().item()
+    train_loss_k_means = torch.stack(train_loss_k_means).mean().item()
+    train_loss_instance_contrastive = torch.stack(train_loss_instance_contrastive).mean().item()
+    train_loss_cluster_contrastive = torch.stack(train_loss_cluster_contrastive).mean().item()
+
     print(
         f'Epoch: {epoch+1}/{args.epochs}',
-        'Loss: %.4f' % (train_loss / (batch_idx + 1)),
-        'MSE Loss: %.4f' % (train_loss_rec / (batch_idx + 1)),
-        'K-means Loss: %.4f' % (train_loss_k_means / (batch_idx + 1)),
-        'Instance Contrastive Loss: %.4f' % (train_loss_instance_contrastive / (batch_idx + 1)),
-        'Cluster Loss: %.4f' % (train_loss_cluster_contrastive / (batch_idx + 1)),
+        'Loss: %.4f' % train_loss,
+        'MSE Loss: %.4f' % train_loss_rec,
+        'K-means Loss: %.4f' % train_loss_k_means,
+        'Instance Loss: %.4f' % train_loss_instance_contrastive,
+        'Cluster Loss: %.4f' % train_loss_cluster_contrastive,
         'RI score: %.4f' % ri,
         'ARI score: %.4f' % ari,
         'NMI score: %.4f' % nmi,
         'Silhouette score: %.4f' % silhouette
     )
 
+    wandb.log({
+        'Epoch': epoch+1,
+        'Loss (epoch)': train_loss,
+        'MSE Loss (epoch)': train_loss_rec,
+        'K-means Loss (epoch)': train_loss_k_means,
+        'Instance Loss (epoch)': train_loss_instance_contrastive,
+        'Cluster Loss (epoch)': train_loss_cluster_contrastive,
+        'RI score': ri,
+        'ARI score': ari,
+        'NMI score': nmi,
+        'Silhouette score': silhouette
+    })
+
     return all_z, all_preds, all_gt, ri, ari, nmi, silhouette
 
 
 def train(args, model, model_augmented, train_loader, test_loader, criterion_rec, criterion_kmeans, criterion_kmeans_augmented, criterion_instance_contrastive, criterion_cluster_contrastive, optimizer, path_ckpt, device):
+    wandb.init(project='Concrete Dense Network for Long-Sequence Time Series Clustering', config=args)
+
     best_ri_score = -np.inf
     print('Training full model ...')
 
@@ -98,5 +128,7 @@ def train(args, model, model_augmented, train_loader, test_loader, criterion_rec
 
     torch.save(model.state_dict(), path_ckpt)
     print('Model saved to: {}'.format(path_ckpt))
+
+    wandb.finish()
 
     return epoch+1, preds, ri, ari, nmi, silhouette

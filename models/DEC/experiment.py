@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import wandb
 from sklearn.metrics import silhouette_score
 from tqdm import tqdm
 
@@ -10,17 +11,22 @@ from utils.metrics import evaluation
 
 def train_epoch(args, model, train_loader, test_loader, optimizer, scheduler, epoch, P, device):
     model.train()
-    train_loss = 0
+    train_loss = []
 
     ### Training on the train set
-    for batch_idx, (inputs, _, idx) in tqdm(enumerate(train_loader), total=len(train_loader), leave=False):
+    for inputs, _, idx in tqdm(train_loader, total=len(train_loader), leave=False):
         inputs = inputs.to(device)
         optimizer.zero_grad()
         x_rec, z, Q = model(inputs)
         loss_total = kl_loss_function(P[idx], Q)
         loss_total.backward()
         optimizer.step()
-        train_loss += loss_total.item()
+        train_loss.append(loss_total.detach())
+
+        wandb.log({
+            'Loss': loss_total
+        })
+
     scheduler.step()
 
     ### Evaluating on the test set
@@ -45,19 +51,32 @@ def train_epoch(args, model, train_loader, test_loader, optimizer, scheduler, ep
     except:
         silhouette = -np.inf
 
+    train_loss = torch.stack(train_loss).mean().item()
+
     print(
         f'Epoch: {epoch+1}/{args.epochs}',
-        'Loss: %.4f' % (train_loss / (batch_idx + 1)),
+        'Loss: %.4f' % train_loss,
         'RI score: %.4f' % ri,
         'ARI score: %.4f' % ari,
         'NMI score: %.4f' % nmi,
         'Silhouette score: %.4f' % silhouette
     )
 
+    wandb.log({
+        'Epoch': epoch+1,
+        'Loss (epoch)': train_loss,
+        'RI score': ri,
+        'ARI score': ari,
+        'NMI score': nmi,
+        'Silhouette score': silhouette
+    })
+
     return all_z, all_preds, all_probs, all_gt, ri, ari, nmi, silhouette
 
 
 def train(args, model, data, train_loader, test_loader, optimizer, scheduler, path_ckpt, device):
+    wandb.init(project='Concrete Dense Network for Long-Sequence Time Series Clustering', config=args)
+
     best_ri_score = -np.inf
     print('Training full model ...')
 
@@ -81,5 +100,7 @@ def train(args, model, data, train_loader, test_loader, optimizer, scheduler, pa
 
     torch.save(model.state_dict(), path_ckpt)
     print('Model saved to: {}'.format(path_ckpt))
+
+    wandb.finish()
 
     return epoch+1, preds, probs, ri, ari, nmi, silhouette

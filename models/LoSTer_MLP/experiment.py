@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn.functional as F
+import wandb
 from sklearn.metrics import silhouette_score
 from tqdm import tqdm
 
@@ -44,6 +45,15 @@ def train_epoch(args, model, model_augmented, train_loader, test_loader, criteri
         train_loss_k_means.append(loss_k_means.detach())
         train_loss_instance_contrastive.append(loss_instance_contrastive.detach())
         train_loss_cluster_contrastive.append(loss_cluster_contrastive.detach())
+
+        wandb.log({
+            'Loss': loss_total,
+            'MSE Loss': loss_rec,
+            'K-means Loss': loss_k_means,
+            'Instance Loss': loss_instance_contrastive,
+            'Cluster Loss': loss_cluster_contrastive
+        })
+
     scheduler.step()
 
     ### Evaluating on the test set
@@ -67,23 +77,44 @@ def train_epoch(args, model, model_augmented, train_loader, test_loader, criteri
     except:
         silhouette = -np.inf
 
+    train_loss = torch.stack(train_loss).mean().item()
+    train_loss_rec = torch.stack(train_loss_rec).mean().item()
+    train_loss_k_means = torch.stack(train_loss_k_means).mean().item()
+    train_loss_instance_contrastive = torch.stack(train_loss_instance_contrastive).mean().item()
+    train_loss_cluster_contrastive = torch.stack(train_loss_cluster_contrastive).mean().item()
+
     print(
         f'Epoch: {epoch+1}/{args.epochs}',
-        'Loss: %.4f' % torch.stack(train_loss).mean().item(),
-        'MSE Loss: %.4f' % torch.stack(train_loss_rec).mean().item(),
-        'K-means Loss: %.4f' % torch.stack(train_loss_k_means).mean().item(),
-        'Instance Loss: %.4f' % torch.stack(train_loss_instance_contrastive).mean().item(),
-        'Cluster Loss: %.4f' % torch.stack(train_loss_cluster_contrastive).mean().item(),
+        'Loss: %.4f' % train_loss,
+        'MSE Loss: %.4f' % train_loss_rec,
+        'K-means Loss: %.4f' % train_loss_k_means,
+        'Instance Loss: %.4f' % train_loss_instance_contrastive,
+        'Cluster Loss: %.4f' % train_loss_cluster_contrastive,
         'RI score: %.4f' % ri,
         'ARI score: %.4f' % ari,
         'NMI score: %.4f' % nmi,
         'Silhouette score: %.4f' % silhouette
     )
 
+    wandb.log({
+        'Epoch': epoch+1,
+        'Loss (epoch)': train_loss,
+        'MSE Loss (epoch)': train_loss_rec,
+        'K-means Loss (epoch)': train_loss_k_means,
+        'Instance Loss (epoch)': train_loss_instance_contrastive,
+        'Cluster Loss (epoch)': train_loss_cluster_contrastive,
+        'RI score': ri,
+        'ARI score': ari,
+        'NMI score': nmi,
+        'Silhouette score': silhouette
+    })
+
     return all_z, all_preds, all_gt, ri, ari, nmi, silhouette
 
 
 def train(args, model, model_augmented, train_loader, test_loader, criterion_rec, criterion_kmeans, criterion_kmeans_augmented, criterion_instance_contrastive, criterion_cluster_contrastive, optimizer, scheduler, path_ckpt, device):
+    wandb.init(project='Concrete Dense Network for Long-Sequence Time Series Clustering', config=args)
+
     best_ri_score = -np.inf
     print('Training full model ...')
 
@@ -103,5 +134,7 @@ def train(args, model, model_augmented, train_loader, test_loader, criterion_rec
 
     torch.save(model.state_dict(), path_ckpt)
     print('Model saved to: {}'.format(path_ckpt))
+
+    wandb.finish()
 
     return epoch+1, preds, ri, ari, nmi, silhouette

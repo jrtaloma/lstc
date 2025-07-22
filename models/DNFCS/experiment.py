@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import wandb
 from sklearn.metrics import silhouette_score
 from tqdm import tqdm
 
@@ -10,13 +11,13 @@ from utils.metrics import evaluation
 
 def train_epoch(args, model, train_loader, test_loader, criterion_rec, optimizer, scheduler, epoch, P, device):
     model.train()
-    train_loss = 0
-    train_loss_rec = 0
-    train_loss_fcs = 0
-    train_loss_kl = 0
+    train_loss = []
+    train_loss_rec = []
+    train_loss_fcs = []
+    train_loss_kl = []
 
     ### Training on the train set
-    for batch_idx, (inputs, _, idx) in tqdm(enumerate(train_loader), total=len(train_loader), leave=False):
+    for inputs, _, idx in tqdm(train_loader, total=len(train_loader), leave=False):
         inputs = inputs.to(device)
         optimizer.zero_grad()
         x_rec, z, Q, S_fw, S_fb = model(inputs)
@@ -26,10 +27,18 @@ def train_epoch(args, model, train_loader, test_loader, criterion_rec, optimizer
         loss_total = loss_rec + args.alpha_fcs * loss_fcs + args.alpha_kl * loss_KL
         loss_total.backward()
         optimizer.step()
-        train_loss += loss_total.item()
-        train_loss_rec += loss_rec.item()
-        train_loss_fcs += loss_fcs.item()
-        train_loss_kl += loss_KL.item()
+        train_loss.append(loss_total.detach())
+        train_loss_rec.append(loss_rec.detach())
+        train_loss_fcs.append(loss_fcs.detach())
+        train_loss_kl.append(loss_KL.detach())
+
+        wandb.log({
+            'Loss': loss_total,
+            'MSE Loss': loss_rec,
+            'FCS Loss': loss_fcs,
+            'KL Loss': loss_KL
+        })
+
     scheduler.step()
 
     ### Evaluating on the test set
@@ -55,22 +64,41 @@ def train_epoch(args, model, train_loader, test_loader, criterion_rec, optimizer
     except:
         silhouette = -np.inf
 
+    train_loss = torch.stack(train_loss).mean().item()
+    train_loss_rec = torch.stack(train_loss_rec).mean().item()
+    train_loss_fcs = torch.stack(train_loss_fcs).mean().item()
+    train_loss_kl = torch.stack(train_loss_kl).mean().item()
+
     print(
         f'Epoch: {epoch+1}/{args.epochs}',
-        'Loss: %.4f' % (train_loss / (batch_idx + 1)),
-        'MSE Loss: %.4f' % (train_loss_rec / (batch_idx + 1)),
-        'FCS Loss: %.4f' % (train_loss_fcs / (batch_idx + 1)),
-        'KL Divergence Loss: %.4f' % (train_loss_kl / (batch_idx + 1)),
+        'Loss: %.4f' % train_loss,
+        'MSE Loss: %.4f' % train_loss_rec,
+        'FCS Loss: %.4f' % train_loss_fcs,
+        'KL Loss: %.4f' % train_loss_kl,
         'RI score: %.4f' % ri,
         'ARI score: %.4f' % ari,
         'NMI score: %.4f' % nmi,
         'Silhouette score: %.4f' % silhouette
     )
 
+    wandb.log({
+        'Epoch': epoch+1,
+        'Loss (epoch)': train_loss,
+        'MSE Loss (epoch)': train_loss_rec,
+        'FCS Loss (epoch)': train_loss_fcs,
+        'KL Loss (epoch)': train_loss_kl,
+        'RI score': ri,
+        'ARI score': ari,
+        'NMI score': nmi,
+        'Silhouette score': silhouette
+    })
+
     return all_z, all_preds, all_probs, all_gt, ri, ari, nmi, silhouette
 
 
 def train(args, model, data, train_loader, test_loader, criterion_rec, optimizer, scheduler, path_ckpt, device):
+    wandb.init(project='Concrete Dense Network for Long-Sequence Time Series Clustering', config=args)
+
     best_ri_score = -np.inf
     print('Training full model ...')
     preds_last = []
@@ -93,5 +121,7 @@ def train(args, model, data, train_loader, test_loader, criterion_rec, optimizer
 
     torch.save(model.state_dict(), path_ckpt)
     print('Model saved to: {}'.format(path_ckpt))
+
+    wandb.finish()
 
     return epoch+1, preds, probs, ri, ari, nmi, silhouette
