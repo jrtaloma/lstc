@@ -88,12 +88,12 @@ if __name__ == '__main__':
     if args.epochs_pretrain == 0:
         model.load_state_dict(torch.load(path_pretrain, map_location=device))
     if args.epochs_pretrain > 0:
-        optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
         pretrain_ae(args, model, train_loader, optimizer, path_pretrain, device)
     if args.epochs_pretrain == 0:
         model_augmented.load_state_dict(torch.load(path_pretrain_augmented, map_location=device))
     if args.epochs_pretrain > 0:
-        optimizer = torch.optim.Adam(model_augmented.parameters(), lr=1e-3)
+        optimizer = torch.optim.Adam(model_augmented.parameters(), lr=0.001)
         pretrain_ae_augmented(args, model_augmented, train_loader, optimizer, path_pretrain_augmented, device)
 
     # Initializing full model with centroids
