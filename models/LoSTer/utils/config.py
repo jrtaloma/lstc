@@ -23,7 +23,7 @@ def get_arguments():
     parser.add_argument('--batch_size', type=int, default=128, help='Batch size')
     parser.add_argument('--epochs_pretrain', type=int, default=50, help='Epochs number of the autoencoder pretraining. Set 0 to load pretrained autoencoder')
     parser.add_argument('--epochs', type=int, default=100, help='Maximum epochs number of the model training')
-    parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate of the model training')
+    parser.add_argument('--lr', type=float, default=1e-2, help='Learning rate of the model training')
     parser.add_argument('--step_size', default=5, type=int, help='Decay the learning rate of each parameter group every step_size epochs')
 
     parser.add_argument('--num_workers', default=4, type=int, help='Number of workers')

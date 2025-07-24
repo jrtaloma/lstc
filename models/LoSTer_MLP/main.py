@@ -113,7 +113,7 @@ if __name__ == '__main__':
     criterion_kmeans_augmented = KMeansLoss(centroids=kmeans_augmented.cluster_centers_).to(device)
     criterion_instance_contrastive = InstanceContrastiveLoss()
     criterion_cluster_contrastive = ClusterContrastiveLoss()
-    optimizer = torch.optim.SGD(list(model.parameters()) + list(criterion_kmeans.parameters()) + list(model_augmented.parameters()) + list(criterion_kmeans_augmented.parameters()), lr=0.01)
+    optimizer = torch.optim.SGD(list(model.parameters()) + list(criterion_kmeans.parameters()) + list(model_augmented.parameters()) + list(criterion_kmeans_augmented.parameters()), lr=args.lr)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=0.1)
 
     # Training & testing
