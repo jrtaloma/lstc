@@ -11,8 +11,6 @@ def get_arguments():
     parser.add_argument('--hidden_size', type=int, default=256, help='Hidden size for dense encoder and decoder')
     parser.add_argument('--n_encoder_layers', type=int, default=3, help='Number of encoder layers')
     parser.add_argument('--n_decoder_layers', type=int, default=3, help='Number of decoder layers')
-    parser.add_argument('--decoder_output_size', type=int, default=32, help='Decoder output size for each time step')
-    parser.add_argument('--decoder_temporal_hidden_size', type=int, default=128, help='Hidden size for temporal decoder')
     parser.add_argument('--dropout', type=float, default=0.1, help='Dropout')
     parser.add_argument('--use_revin', action='store_true', help='Use reverse normalization')
     parser.add_argument('--weight', type=float, default=1.0, help='Hyperparameter for K-means loss')
